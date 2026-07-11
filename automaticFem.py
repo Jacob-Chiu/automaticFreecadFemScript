@@ -3,6 +3,7 @@ import FreeCAD as App
 import FreeCADGui as Gui
 import time
 from femtaskpanels.task_solver_ccxtools import _TaskPanel as solverPanel
+from femtaskpanels.task_mesh_gmsh import _TaskPanel as meshPanel
 import psutil
 import os 
 from PySide import QtCore
@@ -15,12 +16,12 @@ class FemScript:
 		#templateName: the name of the template file, including ".FCStd"
 		#varList: a list of the names (strings) of the variables which must be set
 		#unitList: a list of the units (strings) corresponding to the variables in varList
-				  # this can include mathematical expressions, for example "*10 mm"
+				# this can include mathematical expressions, for example "*10 mm"
 				
 		self.workingDir = workingDir
 		self.templateFile = App.openDocument(workingDir + "/" + templateName)
 		if(len(varList) != len(unitList)):
-			raise Exception("The list of variables and the list of units have different lengths!")
+			self.printError("The list of variables and the list of units have different lengths!")
 		self.varList = varList 
 		self.unitList = unitList 
 		
@@ -43,7 +44,12 @@ class FemScript:
 		with open(self.workingDir + "/log.txt", "a") as logFile:
 			logFile.write(message)
 			logFile.write("\n")
-	
+
+	def printError(self, message):
+		errorMessage = "ERROR: " + str(message)
+		self.printLog(errorMessage)
+		raise Exception(message)
+		
 	def makeFile(self, fileName): #fileName should include the ".FCStd" extension
 		self.printLog("=" * 50) #major separator
 		if(self.currentDoc != None):
@@ -52,8 +58,7 @@ class FemScript:
 		path = self.workingDir + "/" + fileName
 		self.printLog("writing file: " + path)
 		if(os.path.isfile(path)):
-			self.printLog("file already exists. Aborting this simulation.")
-			raise Exception("file already exists")
+			self.printError("file already exists.")
 		self.templateFile.saveCopy(path)
 		self.currentDoc = App.openDocument(path)
 	
@@ -61,14 +66,13 @@ class FemScript:
 	#sets the variables in varList to the numerical values in condList, with the units in unitList
 		varset = self.currentDoc.getObject("VarSet")
 		if(len(condList) != len(self.unitList)):
-			self.printLog("setVars was called with a list of conditions of the wrong length")
-			raise Exception("setVars was called with a list of conditions of the wrong length")
+			self.printError("setVars was called with a list of conditions of the wrong length")
 		for i in range(len(condList)):
 			varset.__setattr__(self.varList[i], str(condList[i]) + self.unitList[i])
 	
 	def makeMesh(self): #meshes the file
 		mesh = self.currentDoc.getObject('FEMMeshGmsh')
-		mesh.ViewObject.doubleClicked() #it is necessary to open the mesh task panel to create the "Tool" object
+		panel = meshPanel(mesh) #this is necessary to create the meshing methods in mesh.Tool
 		
 		#occasionally, the mesher freezes. this code restarts the mesher if it runs for too long without exiting. 
 		maxTime = 60 * 1000 # 60000 ms
@@ -89,20 +93,20 @@ class FemScript:
 				self.printLog("done meshing. took " + str(self.meshTime) + " seconds")
 				break
 			else: #if meshing timed out
-				self.printLog("meshing timed out at " + str(maxTime/1000) + " seconds. aborting and restarting...")
+				self.printLog("meshing timed out at " + str(maxTime/1000) + " seconds. killing and restarting...")
 				mesh.Tool.process.kill() #kill and restart process
+				mesh.Tool.process.waitForFinished(-1) #wait for it to actually kill, takes ~10ms
+				
 				maxTime = maxTime * 4
 				#large meshes will take a long time, and may trigger the timeout
 				#so the timeout increases for subsequent attempts to allow large meshes to complete.
 		
 		self.printLog("exit status was " + mesh.Tool.process.exitStatus().name)
 		if(mesh.Tool.process.exitCode() != 0): #if error code thrown
-			self.printLog("meshing failed! suppressing mesh object")
 			mesh.Suppressed = True #this indicates that meshing failed
-			raise Exception("meshing failed!")
+			self.printError("meshing failed! suppressing mesh object")
 		else:
 			self.printLog("meshing succeeded! recomputed " + str(self.currentDoc.recompute()) + " objects")
-		Gui.Control.closeDialog() #close task panel
 	
 	def solveMesh(self):
 		self.printLog("-" * 50) #minor separator
@@ -125,9 +129,8 @@ class FemScript:
 				panel.Calculix.waitForFinished(100) #check free memory every 10 seconds
 				vm = psutil.virtual_memory()
 				if(vm.available / vm.total < 0.05): #if >95% of memory is used, kill the solver
-					self.printLog("ran out of memory! killing solver")
 					panel.stopCalculix()
-					raise Exception("ran out of memory")
+					self.printError("ran out of memory! killing solver")
 			nonlocal done
 			done = True
 		
@@ -180,8 +183,7 @@ class FemScript:
 	def solveCondition(self, condList):
 	#creates and solves a simulation with variables in varList set to the values in condList
 		if(len(condList) != len(self.unitList)):
-			self.printLog("solveCondition was called with a list of conditions of the wrong length")
-			raise Exception("solveCondition was called with a list of conditions of the wrong length")
+			self.printError("solveCondition was called with a list of conditions of the wrong length")
 
 		fileName = "-".join([str(i) for i in condList]) + ".FCStd"
 		# solveCondition([1,2,3,4]) → "1-2-3-4.FCStd"
@@ -194,9 +196,9 @@ class FemScript:
 	#creates and solves a simulation with variables in varList defined by condString
 	#condString is formatted with values separated by dashes, e.g. "1-2-3-4"
 		condList = condString.split("-")
-		solveCondition(condList)
+		self.solveCondition(condList)
 
-"""	
+
 auto = FemScript("/home/jacoby/Documents/FreeCAD/GRT fea stuff/automated FEM script/runFromStringTest", "test.FCStd", ["beamLength", "beamWidth", "elementSize", "force"], [" mm"," mm"," mm"," N"])
-auto.solveCondition([100,10,2,50])
-"""
+auto.solveString("100-10-2-100")
+
