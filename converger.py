@@ -7,69 +7,55 @@ run until it gives up is "maxIterations".
 """
 
 
-import FreeCAD as App
-import FreeCADGui as Gui
-from PySide import QtCore
-from PySide6.QtCore import QProcess
-from femsolver.run import run_fem_solver
-import time
-
-#the following code allows automaticFem to be imported
-import os
 import sys
-script_dir = os.path.dirname(os.path.abspath(__file__))
-if script_dir not in sys.path:
-    sys.path.append(script_dir)
-from automaticFem import *
+import os
+cwd = os.path.dirname(os.path.abspath(__file__))
+sys.path.append(cwd)
+from automaticFem import FemScript
 
-#OTHER VARIABLES + SETUP
-workingDir = "/home/jacoby/Public/FEM/convergerTest/100000-2" #the directory that all the files are stored in
-print("\n\n\nSTARTING AUTOMATIC FEM SCRIPT")
-print("Working directory is:", workingDir)
-baseFile = App.openDocument(workingDir + "/100000-2.FCStd")
+workingDir = cwd + "/testing/convergerTest"
+templateName = "test.FCStd"
+meshSizeVar = "elementSize"
+meshSizeUnit = " mm"
 
 maxStresses  = []
-meshSizes = [0.2]
+meshSize = 10
+meshSizes = []
 meshSizeDivider = 2
-meshSizeUnit = " mm"
 iterationLimit = 6
-maxError = 0.05
-print("Max. error is:", maxError)
-print("Iteration limit is:", iterationLimit)
+maxError = 0.02
 
-for i in range(iterationLimit):
-	meshSize = str(meshSizes[-1]) + meshSizeUnit
-	filePath = workingDir + "/" + meshSize + ".FCStd"
-	
-	file = makeFile(baseFile, filePath)
+auto = FemScript(workingDir, templateName, [meshSizeVar], [meshSizeUnit])
+auto.printLog("Max. error is:" + str(maxError))
+auto.printLog("Iteration limit is: " + str(iterationLimit))
 
-	#set mesh size in variable set
-	varset = file.getObject("VarSet")
-	varset.elementSize = meshSize
-	print("recomputed" , file.recompute(), "objects")
-	
-	makeMesh(file)
-	solveMesh(file)
-	
-	maxStress = max(file.getObject('CCX_Results').vonMises)	
-	print("max. stress was", maxStress)
-	maxStresses.append(maxStress)
-
-	closeFile(file)
+while True:
+	meshSizes.append(meshSize)
+	try: 
+		auto.solveCondition([meshSize])
+	except: 
+		auto.printLog("-" * 50)
+		auto.printLog("aborting simulation")
+		break
+	maxStresses.append(auto.maxShearStress)
+	auto.closeFile()
 
 	#check if convergence has been reached
-	try: err = abs((maxStress - maxStresses[-2]) / maxStress)
+	try: err = abs((maxStresses[-1] - maxStresses[-2]) / maxStresses[-1])
 	except: err = 1000
 	if(err < maxError): 
-		print("=" * 50) #major separator 
-		print("convergence reached between latest stress value of", maxStress, "and previous stress value of", maxStresses[-2])
-		print("it took", len(maxStresses), "runs to achieve convergence")
+		auto.printLog("=" * 50) #major separator 
+		auto.printLog(	"convergence reached between latest stress value of " + str(maxStresses[-1]) + 
+						" and previous stress value of " + str(maxStresses[-2]))
+		auto.printLog("it took " + str(len(maxStresses)) +  " runs to achieve convergence")
 		break
-
-	meshSizes.append(meshSizes[-1] / meshSizeDivider) #compute new mesh size
+	elif(len(maxStresses) >= iterationLimit):
+		auto.printLog("=" * 50) #major separator 
+		auto.printLog(	"convergence was not reached. last stress values were " + 
+						str(maxStresses[-1]) + " and " + str(maxStresses[-2]))
+		break
+	else:
+		meshSize = meshSize / meshSizeDivider #compute new mesh size
 	
-if(not(err < maxError)):
-	print("convergence was not reached. last stress values were", maxStresses[-1], "and", maxStresses[-2])
-
 print("\n\nall max. stresses:", maxStresses)
 print("all conditions:" , meshSizes)

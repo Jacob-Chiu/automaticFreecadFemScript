@@ -1,26 +1,26 @@
-import FreeCAD as App
-import FreeCADGui as Gui
-from PySide import QtCore
-from femsolver.run import run_fem_solver
-import time
+"""
+This converger works by running FEM simulations with decreasing mesh sizes until their maximum stresses converge. 
+Each iteration, the mesh size is decreased by a factor of "meshSizeDivider". 
+A list of the mesh sizes in each simulation is stored in "meshSizes". The corresponding maximum stresses are stored in "maxStresses". 
+The maximum percent error is stored in the variable "maxError" (e.g. 5% = 0.05). The maximum number of simulations the script will 
+run until it gives up is "maxIterations".
+"""
 
-#the following code allows automaticFem to be imported
-import os
+
 import sys
-script_dir = os.path.dirname(os.path.abspath(__file__))
-if script_dir not in sys.path:
-    sys.path.append(script_dir)
-from automaticFem import *
+import os
+cwd = os.path.dirname(os.path.abspath(__file__))
+sys.path.append(cwd)
+from automaticFem import FemScript
 
-#OTHER VARIABLES + SETUP
-workingDir = "/home/jacoby/Public/FEM/spherePlateConvergence/autoConvergerTest" #the directory that all the files are stored in
-print("\n\n\nSTARTING AUTOMATIC FEM SCRIPT")
-print("Working directory is:", workingDir)
-baseFile = App.openDocument(workingDir + "/test.FCStd")
+workingDir = cwd + "/testing/convergerTest"
+templateName = "test.FCStd"
 
 elementSize = 100
 clearanceAdjust = 16
 contactStiff = 500
+
+varList = ["elementSize", ]
 conditions = []
 maxVMStresses = []
 maxShearStresses = []

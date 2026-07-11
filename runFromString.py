@@ -1,8 +1,10 @@
 import sys
-sys.path.append("/home/jacoby/Documents/FreeCAD/automaticFreecadFemScript")
+import os
+cwd = os.path.dirname(os.path.abspath(__file__))
+sys.path.append(cwd)
 from automaticFem import FemScript
 
-workingDir = "/home/jacoby/Documents/FreeCAD/GRT fea stuff/automated FEM script/runFromStringTest"
+workingDir = cwd + "/testing/runFromStringTest"
 templateName = "test.FCStd"
 varList = ["beamLength", "beamWidth", "elementSize", "force"]
 unitList = [" mm"," mm"," mm"," N"]

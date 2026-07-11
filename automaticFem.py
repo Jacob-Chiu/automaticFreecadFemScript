@@ -27,6 +27,7 @@ class FemScript:
 		
 		self.printLog("\n\n\n")
 		self.printLog("============NEW AUTOMATIC FEM SCRIPT============")
+		self.printLog("Python script: " + __file__)
 		self.printLog("working directory: " + workingDir)
 		self.printLog("template file: " + templateName)
 		self.printLog("variables: " + str(varList))
@@ -34,7 +35,9 @@ class FemScript:
 		
 		self.currentDoc = None #the current document that is being modified/solved (a copy of the template)
 		self.meshTime = None #time taken to create mesh
+		self.meshExitCode = None #mesher exit code
 		self.solveTime = None #time taken to solve simulation
+		self.solveExitCode = None #solver exit code
 		self.maxVmStress = None #max. von mises stress
 		self.maxShearStress = None # max. shear stress
 	
@@ -69,13 +72,15 @@ class FemScript:
 			self.printError("setVars was called with a list of conditions of the wrong length")
 		for i in range(len(condList)):
 			varset.__setattr__(self.varList[i], str(condList[i]) + self.unitList[i])
+		self.currentDoc.recompute()
 	
 	def makeMesh(self): #meshes the file
 		mesh = self.currentDoc.getObject('FEMMeshGmsh')
 		panel = meshPanel(mesh) #this is necessary to create the meshing methods in mesh.Tool
 		
 		#occasionally, the mesher freezes. this code restarts the mesher if it runs for too long without exiting. 
-		maxTime = 60 * 1000 # 60000 ms
+		maxTime = 60 * 1000 # 60 * 1000 ms; sorry this is a handwavey magic number
+		secondTry = False
 		while True:
 			self.printLog("-" * 50) #minor separator
 			self.printLog("preparing mesh...")
@@ -90,23 +95,30 @@ class FemScript:
 			mesh.Tool.process.waitForFinished(maxTime) #wait until meshing finished, for a max. of maxTime milliseconds
 			if(mesh.Tool.process.state().name == "NotRunning"): # if process finished
 				self.meshTime = time.time()-startTime
+				self.meshExitCode = mesh.Tool.process.exitCode()
 				self.printLog("done meshing. took " + str(self.meshTime) + " seconds")
-				break
+				self.printLog("exit status was " + mesh.Tool.process.exitStatus().name)
+				self.printLog("exit code was " + str(self.meshExitCode))
+				
+				if(self.meshExitCode == 0): #if error code was not thrown
+					self.printLog("meshing succeeded! recomputed " + str(self.currentDoc.recompute()) + " objects")
+					break
+				elif(secondTry == False): #if this is the first try
+					mesh.Suppressed = True #this indicates that meshing failed
+					self.printError("meshing failed on second try! suppressing mesh object")
+					break
+				else: #try again, and reset the max time. 
+					secondTry = True
+					maxTime = 60 * 1000 #60 * 1000 ms; magic number
+					self.printLog("meshing failed! trying again")
 			else: #if meshing timed out
 				self.printLog("meshing timed out at " + str(maxTime/1000) + " seconds. killing and restarting...")
 				mesh.Tool.process.kill() #kill and restart process
-				mesh.Tool.process.waitForFinished(-1) #wait for it to actually kill, takes ~10ms
+				mesh.Tool.process.waitForFinished(-1) #wait for it to actually stop running
 				
 				maxTime = maxTime * 4
 				#large meshes will take a long time, and may trigger the timeout
 				#so the timeout increases for subsequent attempts to allow large meshes to complete.
-		
-		self.printLog("exit status was " + mesh.Tool.process.exitStatus().name)
-		if(mesh.Tool.process.exitCode() != 0): #if error code thrown
-			mesh.Suppressed = True #this indicates that meshing failed
-			self.printError("meshing failed! suppressing mesh object")
-		else:
-			self.printLog("meshing succeeded! recomputed " + str(self.currentDoc.recompute()) + " objects")
 	
 	def solveMesh(self):
 		self.printLog("-" * 50) #minor separator
@@ -121,6 +133,7 @@ class FemScript:
 		
 		startTime = time.time()
 		vm = psutil.virtual_memory()
+		self.printLog("solving...")
 		
 		done = False
 		def helper():
@@ -130,6 +143,7 @@ class FemScript:
 				vm = psutil.virtual_memory()
 				if(vm.available / vm.total < 0.05): #if >95% of memory is used, kill the solver
 					panel.stopCalculix()
+					self.solveExitCode = "OOM"
 					self.printError("ran out of memory! killing solver")
 			nonlocal done
 			done = True
@@ -140,11 +154,14 @@ class FemScript:
 			time.sleep(0.001)
 		
 		self.solveTime = time.time() - startTime
+		self.solveExitCode = panel.Calculix.exitCode()
 		self.printLog("done solving. took " + str(self.solveTime) + " seconds")
 		self.printLog("exit status was " + panel.Calculix.exitStatus().name)
+		self.printLog("exit code was " + str(self.solveExitCode))
 		
-		if(panel.Calculix.exitCode() != 0):
-			self.printLog("solving failed")
+		
+		if(self.solveExitCode != 0):
+			self.printError("solving failed")
 		else:
 			self.maxVmStress = self.getMaxVmStress()
 			self.maxShearStress = self.getMaxShearStress()
@@ -174,7 +191,9 @@ class FemScript:
 		
 		self.currentDoc = None
 		self.meshTime = None
+		self.meshExitCode = None
 		self.solveTime = None
+		self.solveExitCode = None
 		self.maxVmStress = None
 		self.maxShearStress = None
 		
@@ -198,7 +217,17 @@ class FemScript:
 		condList = condString.split("-")
 		self.solveCondition(condList)
 
-
-auto = FemScript("/home/jacoby/Documents/FreeCAD/GRT fea stuff/automated FEM script/runFromStringTest", "test.FCStd", ["beamLength", "beamWidth", "elementSize", "force"], [" mm"," mm"," mm"," N"])
-auto.solveString("100-10-2-100")
+if __name__ == "__main__":
+	import sys
+	import os
+	cwd = os.path.dirname(os.path.abspath(__file__))
+	sys.path.append(cwd)
+	from automaticFem import FemScript
+	
+	workingDir = cwd + "/testing/automaticFemTest"
+	templateName = "test.FCStd"
+	varList = ["beamLength", "beamWidth", "elementSize", "force"]
+	unitList = [" mm"," mm"," mm"," N"]
+	auto = FemScript(workingDir, templateName, varList, unitList)
+	auto.solveCondition([100,10,2,100])
 
