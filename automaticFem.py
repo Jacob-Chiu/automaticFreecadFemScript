@@ -1,4 +1,3 @@
-#this is a test change
 import FreeCAD as App
 import FreeCADGui as Gui
 import time
@@ -17,21 +16,24 @@ class FemScript:
 		#varList: a list of the names (strings) of the variables which must be set
 		#unitList: a list of the units (strings) corresponding to the variables in varList
 				# this can include mathematical expressions, for example "*10 mm"
-				
-		self.workingDir = workingDir
-		self.templateFile = App.openDocument(workingDir + "/" + templateName)
-		if(len(varList) != len(unitList)):
-			self.printError("The list of variables and the list of units have different lengths!")
-		self.varList = varList 
-		self.unitList = unitList 
 		
+		self.workingDir = workingDir #this needs to be defined for printLog to work
 		self.printLog("\n\n\n")
 		self.printLog("============NEW AUTOMATIC FEM SCRIPT============")
 		self.printLog("Python script: " + __file__)
 		self.printLog("working directory: " + workingDir)
+		
+		self.templateFile = App.openDocument(workingDir + "/" + templateName)
 		self.printLog("template file: " + templateName)
+		
+
+		self.varList = varList
 		self.printLog("variables: " + str(varList))
+		self.unitList = unitList
 		self.printLog("units: " + str(unitList))
+		if(len(varList) != len(unitList)):
+			self.printLog("The list of variables and the list of units have different lengths!")
+			raise ValueError()
 		
 		self.currentDoc = None #the current document that is being modified/solved (a copy of the template)
 		self.meshTime = None #time taken to create mesh
@@ -47,21 +49,17 @@ class FemScript:
 		with open(self.workingDir + "/log.txt", "a") as logFile:
 			logFile.write(message)
 			logFile.write("\n")
-
-	def printError(self, message):
-		errorMessage = "ERROR: " + str(message)
-		self.printLog(errorMessage)
-		raise Exception(message)
 		
 	def makeFile(self, fileName): #fileName should include the ".FCStd" extension
 		self.printLog("=" * 50) #major separator
 		if(self.currentDoc != None):
 			self.printLog("previous file was open! closing it and writing new file")
-			closeFile()
+			self.closeFile()
 		path = self.workingDir + "/" + fileName
 		self.printLog("writing file: " + path)
 		if(os.path.isfile(path)):
-			self.printError("file already exists.")
+			self.printLog("ERROR: file already exists.")
+			raise FileExistsError()
 		self.templateFile.saveCopy(path)
 		self.currentDoc = App.openDocument(path)
 	
@@ -69,7 +67,8 @@ class FemScript:
 	#sets the variables in varList to the numerical values in condList, with the units in unitList
 		varset = self.currentDoc.getObject("VarSet")
 		if(len(condList) != len(self.unitList)):
-			self.printError("setVars was called with a list of conditions of the wrong length")
+			self.printLog("ERROR: setVars was called with a list of conditions of the wrong length")
+			raise ValueError()
 		for i in range(len(condList)):
 			varset.__setattr__(self.varList[i], str(condList[i]) + self.unitList[i])
 		self.currentDoc.recompute()
@@ -103,11 +102,12 @@ class FemScript:
 				if(self.meshExitCode == 0): #if error code was not thrown
 					self.printLog("meshing succeeded! recomputed " + str(self.currentDoc.recompute()) + " objects")
 					break
-				elif(secondTry == False): #if this is the first try
+				elif(secondTry): #if this is the second try
 					mesh.Suppressed = True #this indicates that meshing failed
-					self.printError("meshing failed on second try! suppressing mesh object")
+					self.printLog("ERROR: meshing failed on second try! suppressing mesh object")
+					raise MeshError()
 					break
-				else: #try again, and reset the max time. 
+				else: #if this is the first try, try again 
 					secondTry = True
 					maxTime = 60 * 1000 #60 * 1000 ms; magic number
 					self.printLog("meshing failed! trying again")
@@ -132,19 +132,19 @@ class FemScript:
 		self.printLog("done writing input file. took " + str(time.time() - startTime) + " seconds")
 		
 		startTime = time.time()
-		vm = psutil.virtual_memory()
 		self.printLog("solving...")
 		
 		done = False
+		vm = psutil.virtual_memory()
 		def helper():
 			panel.runCalculix()
 			while panel.Calculix.state().name != "NotRunning":
-				panel.Calculix.waitForFinished(100) #check free memory every 10 seconds
-				vm = psutil.virtual_memory()
+				panel.Calculix.waitForFinished(100) #check free memory every 0.1 seconds
 				if(vm.available / vm.total < 0.05): #if >95% of memory is used, kill the solver
 					panel.stopCalculix()
 					self.solveExitCode = "OOM"
-					self.printError("ran out of memory! killing solver")
+					self.printLog("ERROR: ran out of memory! killing solver")
+					raise MemoryError()
 			nonlocal done
 			done = True
 		
@@ -161,7 +161,8 @@ class FemScript:
 		
 		
 		if(self.solveExitCode != 0):
-			self.printError("solving failed")
+			self.printLog("ERROR: solving failed")
+			raise SolverError()
 		else:
 			self.maxVmStress = self.getMaxVmStress()
 			self.maxShearStress = self.getMaxShearStress()
@@ -201,9 +202,6 @@ class FemScript:
 	
 	def solveCondition(self, condList):
 	#creates and solves a simulation with variables in varList set to the values in condList
-		if(len(condList) != len(self.unitList)):
-			self.printError("solveCondition was called with a list of conditions of the wrong length")
-
 		fileName = "-".join([str(i) for i in condList]) + ".FCStd"
 		# solveCondition([1,2,3,4]) → "1-2-3-4.FCStd"
 		self.makeFile(fileName)
@@ -217,6 +215,9 @@ class FemScript:
 		condList = condString.split("-")
 		self.solveCondition(condList)
 
+class SolverError(Exception): pass
+class MeshError(Exception): pass
+
 if __name__ == "__main__":
 	import sys
 	import os
@@ -225,7 +226,7 @@ if __name__ == "__main__":
 	from automaticFem import FemScript
 	
 	workingDir = cwd + "/testing/automaticFemTest"
-	templateName = "test.FCStd"
+	templateName = "beamTest.FCStd"
 	varList = ["beamLength", "beamWidth", "elementSize", "force"]
 	unitList = [" mm"," mm"," mm"," N"]
 	auto = FemScript(workingDir, templateName, varList, unitList)

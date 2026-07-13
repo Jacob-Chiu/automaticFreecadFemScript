@@ -1,100 +1,79 @@
-"""
-This converger works by running FEM simulations with decreasing mesh sizes until their maximum stresses converge. 
-Each iteration, the mesh size is decreased by a factor of "meshSizeDivider". 
-A list of the mesh sizes in each simulation is stored in "meshSizes". The corresponding maximum stresses are stored in "maxStresses". 
-The maximum percent error is stored in the variable "maxError" (e.g. 5% = 0.05). The maximum number of simulations the script will 
-run until it gives up is "maxIterations".
-"""
-
-
 import sys
 import os
 cwd = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(cwd)
 from automaticFem import FemScript
 
-workingDir = cwd + "/testing/convergerTest"
-templateName = "test.FCStd"
+workingDir = cwd + "/testing/convergerMultivarTest"
+templateName = "spherePlateTest.FCStd"
+varList = ["elementSize", "clearanceAdjustment", "contactStiffness"]
+unitList = [" um", " um", "*1000 GPa/m"]
 
 elementSize = 100
+elementSizeDivider = 2
 clearanceAdjust = 16
+clearanceAdjustDivider = 2
 contactStiff = 500
+contactStiffMultiplier = 2
+maxError = 0.05
+iterationLimit = 20
+maxStresses = []
 
-varList = ["elementSize", ]
-conditions = []
-maxVMStresses = []
-maxShearStresses = []
-solveTimes = []
+auto = FemScript(workingDir, templateName, varList, unitList)
+auto.printLog("Max. error is: " + str(maxError))
+auto.printLog("Iteration limit is: " + str(iterationLimit))
 
 state = 1
-# 1 = converging clearance adjust + element size
-# 2 = converging contact stiffness
-maxError = 0.05
-print("maximum error is", maxError)
-
 while True:
-	conditionString = str(elementSize) + "-" + str(clearanceAdjust) + "-" + str(contactStiff)
-	conditions.append(conditionString)
-	filePath = workingDir + "/" + conditionString + ".FCStd"
-	file = makeFile(baseFile, filePath)
+	try:
+		auto.solveCondition([elementSize, clearanceAdjust, contactStiff])
+	except SolverError:
+		pass
+	except: 
+		auto.printLog("=" * 50)
+		auto.printLog("aborting convergence study")
+		break
 	
-	varset = file.getObject("VarSet")
-	varset.elementSize = str(elementSize) + " um"
-	varset.clearanceAdjustment = str(clearanceAdjust) + " um"
-	varset.contactStiffness = str(contactStiff) + "*1000 GPa/m"
-	print("recomputed" , file.recompute(), "objects")
-	makeMesh(file)
-	
-	solveTimes.append(solveMesh(file))
-	
-	print("-" * 50) #minor separator  	
-    
-	try: 
-		result = file.getObject('CCX_Results')
-		maxVMStress = max(result.vonMises)
-		maxShearStress = max(result.MaxShear)
-		print("max. v.m. stress was", maxVMStress)
-		print("max shear stress was", maxShearStress)
-	except:
-		maxVMStress = "NONE"
-		maxShearStress = "NONE"
-		print("ERROR: could not find maximum stress, probably some solver error.")
-	maxVMStresses.append(maxVMStress)
-	maxShearStresses.append(maxShearStress)
-	closeFile(file)
+	maxStresses.append(auto.maxShearStress)
+	auto.closeFile()
+	auto.printLog("-" * 50)
 	
 	try:
-		error = (maxShearStresses[-1] - maxShearStresses[-2]) / maxShearStresses[-2]
-		print("calculated an error of", error)
-	except: 
-		error = 100 #this occurs for the first iteration, and also on the first iteration after decreasing element size
-		print("could not determine error")
-		
-	if(maxShearStresses[-1] == "NONE"): #if not solved
-		print("Decreasing element size and reverting clearance adjustment.")
-		elementSize = elementSize / 2
-		clearanceAdjust = clearanceAdjust * 2
+		error = abs((maxStresses[-1] - maxStresses[-2]) / maxStresses[-1])
+		auto.printLog("calculated an error of " + str(error))
+	except: error = 1000 
+	#this occurs for the first iteration, and also on the first iteration after decreasing element size
+	
+	if(maxStresses[-1] == None): #if solver failed
+		auto.printLog("Decreasing element size and reverting clearance adjustment")
+		elementSize = elementSize / elementSizeDivider
+		clearanceAdjust = clearanceAdjust * clearanceAdjustDivider
 		state = 1
-	elif(state == 1):
-		if(abs(error) > maxError): #if not converged
-			print("Clearance adjustment not converged, reducing clearance adjustment.")
-			clearanceAdjust = clearanceAdjust / 2
+	elif(state == 1): #converging clearance adjust + element size
+		if(error > maxError): #if not converged
+			auto.printLog("Clearance adjustment not converged, continue converging clearance adjustment")
+			auto.printLog("Reducing clearance adjustment")
+			clearanceAdjust = clearanceAdjust / clearanceAdjustDivider
 		else:
-			print("Clearance adjustment converged, now converging contact stiffness. Reverting clearance adjustment and increasing contact stiffness.")
-			clearanceAdjust = clearanceAdjust * 2
-			contactStiff = contactStiff * 2
+			auto.printLog("Clearance adjustment converged, now converging contact stiffness.")
+			auto.printLog("Reverting clearance adjustment and increasing contact stiffness.")
+			clearanceAdjust = clearanceAdjust * clearanceAdjustDivider
+			contactStiff = contactStiff * contactStiffMultiplier
 			state = 2
-	else: #state == 2
-		if(abs(error) > maxError):
-			print("Contact stiffness not converged, checking clearance adjustment convergence. Reducing clearance adjustment.")
-			clearanceAdjust = clearanceAdjust / 2
+	else: #state == 2; converging contact stiffness
+		if(error > maxError):
+			auto.printLog("Contact stiffness not converged, checking clearance adjustment convergence.")
+			auto.printLog("Reducing clearance adjustment.")
+			clearanceAdjust = clearanceAdjust / clearanceAdjustDivider
 			state = 1
 		else:
-			print("Contact stiffness converged. DONE!!! YAY!!!!")
-			print("FINAL MAX SHEAR STRESS:", maxShearStress)
-
-print("="*50)
-print("all conditions:", conditions)
-print("all max. v.m. stresses:", maxVMStresses)
-print("all max shear stresses:", maxShearStresses)
-print("all times:", solveTimes)
+			auto.printLog("Contact stiffness converged. DONE!!! YAY!!!!")
+			auto.printLog("=" * 50)
+			auto.printLog("FINAL MAX STRESS: " + str(maxStresses[-1]))
+			break
+	
+	if(len(maxStresses) >= iterationLimit):
+		auto.printLog("=" * 50) #major separator 
+		auto.printLog("iteration limit reached")
+		auto.printLog("last stress value was " + str(maxStresses[-1]))
+		break

@@ -5,7 +5,7 @@ sys.path.append(cwd)
 from automaticFem import FemScript
 
 workingDir = cwd + "/testing/runFromStringTest"
-templateName = "test.FCStd"
+templateName = "beamTest.FCStd"
 varList = ["beamLength", "beamWidth", "elementSize", "force"]
 unitList = [" mm"," mm"," mm"," N"]
 auto = FemScript(workingDir, templateName, varList, unitList)
@@ -20,14 +20,6 @@ for condString in conditions:
 	try:
 		auto.solveString(condString)
 	except:
+		auto.printLog("-" * 50)
 		auto.printLog("aborting simulation")
-	maxVMStresses.append(auto.maxVmStress)
-	maxShearStresses.append(auto.maxShearStress)
-	solveTimes.append(auto.solveTime)
 	auto.closeFile()
-
-auto.printLog("="*50)
-auto.printLog("all conditions: " + str(conditions))
-auto.printLog("all max. v.m. stresses: " + str(maxVMStresses))
-auto.printLog("all max shear stresses: " + str(maxShearStresses))
-auto.printLog("all times: " + str(solveTimes))

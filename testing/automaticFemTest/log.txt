@@ -1,0 +1,30 @@
+2026-07-13 10:28:53.096140    
+
+
+
+2026-07-13 10:28:53.096282    ============NEW AUTOMATIC FEM SCRIPT============
+2026-07-13 10:28:53.096341    Python script: /home/jacoby/Documents/FreeCAD/automaticFreecadFemScript/automaticFem.py
+2026-07-13 10:28:53.096401    working directory: /home/jacoby/Documents/FreeCAD/automaticFreecadFemScript/testing/automaticFemTest
+2026-07-13 10:28:53.096454    template file: test.FCStd
+2026-07-13 10:28:53.096516    variables: ['beamLength', 'beamWidth', 'elementSize', 'force']
+2026-07-13 10:28:53.096598    units: [' mm', ' mm', ' mm', ' N']
+2026-07-13 10:28:53.096705    ==================================================
+2026-07-13 10:28:53.096761    writing file: /home/jacoby/Documents/FreeCAD/automaticFreecadFemScript/testing/automaticFemTest/100-10-2-100.FCStd
+2026-07-13 10:28:55.386365    --------------------------------------------------
+2026-07-13 10:28:55.386491    preparing mesh...
+2026-07-13 10:28:55.393027    done preparing. took 0.0064427852630615234 seconds
+2026-07-13 10:28:55.393119    meshing...
+2026-07-13 10:28:56.302638    done meshing. took 0.9093599319458008 seconds
+2026-07-13 10:28:56.303284    exit status was NormalExit
+2026-07-13 10:28:56.303445    exit code was 0
+2026-07-13 10:28:56.304235    meshing succeeded! recomputed 2 objects
+2026-07-13 10:28:56.304402    --------------------------------------------------
+2026-07-13 10:28:56.312158    writing input file...
+2026-07-13 10:28:56.856729    done writing input file. took 0.5445640087127686 seconds
+2026-07-13 10:28:56.857101    solving...
+2026-07-13 10:29:01.015167    done solving. took 4.1582159996032715 seconds
+2026-07-13 10:29:01.015305    exit status was NormalExit
+2026-07-13 10:29:01.015362    exit code was 0
+2026-07-13 10:29:01.016716    solving succeeded!
+2026-07-13 10:29:01.016781    max von Mises stress was 1030.5824602354728
+2026-07-13 10:29:01.016829    max shear stress was 583.5972519045071
