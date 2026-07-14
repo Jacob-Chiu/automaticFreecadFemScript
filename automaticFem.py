@@ -42,6 +42,18 @@ class FemScript:
 		self.solveExitCode = None #solver exit code
 		self.maxVmStress = None #max. von mises stress
 		self.maxShearStress = None # max. shear stress
+		
+		#print a row of column labels
+		#and then a row their corresponding units
+		self.printResult("\n")
+		self.printResult("start time" + ",")
+		self.printResult(",".join(varList) + ",")
+		self.printResult("mesh time,mesh exit code,solve time,solve exit code,max von Mises stress,max shear stress")
+		self.printResult("\n")
+		self.printResult(",")
+		self.printResult(",".join(unitList) + ",")
+		self.printResult("s,,s,,MPa,MPa") #I think MPa are the stress units in CCX_Results
+		
 	
 	def printLog(self, message): #prints a message to the shell, and also appends it to a log file
 		print(message)
@@ -49,7 +61,11 @@ class FemScript:
 		with open(self.workingDir + "/log.txt", "a") as logFile:
 			logFile.write(message)
 			logFile.write("\n")
-		
+	
+	def printResult(self, message): 
+		with open(self.workingDir + "/result.csv", "a") as resultFile:
+			resultFile.write(message)
+	
 	def makeFile(self, fileName): #fileName should include the ".FCStd" extension
 		self.printLog("=" * 50) #major separator
 		if(self.currentDoc != None):
@@ -120,7 +136,7 @@ class FemScript:
 				#large meshes will take a long time, and may trigger the timeout
 				#so the timeout increases for subsequent attempts to allow large meshes to complete.
 	
-	def solveMesh(self):
+	def solveMesh(self): #solves the file
 		self.printLog("-" * 50) #minor separator
 		
 		solver = self.currentDoc.getObject("SolverCcxTools")
@@ -202,12 +218,26 @@ class FemScript:
 	
 	def solveCondition(self, condList):
 	#creates and solves a simulation with variables in varList set to the values in condList
+		
 		fileName = "-".join([str(i) for i in condList]) + ".FCStd"
 		# solveCondition([1,2,3,4]) → "1-2-3-4.FCStd"
+		
 		self.makeFile(fileName)
 		self.setVars(condList)
-		self.makeMesh()
-		self.solveMesh()
+		
+		try:
+		#if makeFile and setVars fail, then don't write anything to the result file
+		#but register the failed result in the result file if makeMesh or solveMesh fail
+			self.makeMesh()
+			self.solveMesh()
+		finally: 
+			self.printResult("\n")
+			self.printResult(str(datetime.datetime.now()) + ",")
+			self.printResult(",".join(condList) + ",")
+			self.printResult(str(self.meshTime) + "," + str(self.meshExitCode) + ",")
+			self.printResult(str(self.solveTime) + "," + str(self.solveExitCode) + ","
+							 + str(self.maxVmStress) + "," + str(self.maxShearStress))
+		#lack of "except" block means that errors in "try" will keep propagating after "finally" runs
 		
 	def solveString(self, condString):
 	#creates and solves a simulation with variables in varList defined by condString
