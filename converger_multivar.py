@@ -2,7 +2,7 @@ import sys
 import os
 cwd = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(cwd)
-from automaticFem import FemScript
+from automaticFem import *
 
 workingDir = cwd + "/testing/convergerMultivarTest"
 templateName = "spherePlateTest.FCStd"

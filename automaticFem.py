@@ -233,7 +233,7 @@ class FemScript:
 		finally: 
 			self.printResult("\n")
 			self.printResult(str(datetime.datetime.now()) + ",")
-			self.printResult(",".join(condList) + ",")
+			self.printResult(",".join([str(i) for i in condList]) + ",")
 			self.printResult(str(self.meshTime) + "," + str(self.meshExitCode) + ",")
 			self.printResult(str(self.solveTime) + "," + str(self.solveExitCode) + ","
 							 + str(self.maxVmStress) + "," + str(self.maxShearStress))
