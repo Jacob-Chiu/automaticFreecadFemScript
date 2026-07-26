@@ -4,8 +4,8 @@ cwd = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(cwd)
 from automaticFem import *
 
-workingDir = cwd + "/testing/runFromStringTest"
-templateName = "beamTest.FCStd"
+workingDir = cwd + "/testing/solveList"
+templateName = "beam.FCStd"
 varList = ["beamLength", "beamWidth", "elementSize", "force"]
 unitList = [" mm"," mm"," mm"," N"]
 auto = FemScript(workingDir, templateName, varList, unitList)
@@ -23,3 +23,6 @@ for condString in conditions:
 		auto.printLog("-" * 50)
 		auto.printLog("aborting simulation")
 	auto.closeFile()
+
+auto.printLog("=" * 50) 
+auto.printLog("DONE RUNNING ALL SIMULATIONS")

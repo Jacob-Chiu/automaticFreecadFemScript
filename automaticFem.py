@@ -81,15 +81,17 @@ class FemScript:
 	
 	def setVars(self, condList): 
 	#sets the variables in varList to the numerical values in condList, with the units in unitList
+	#condList is a list of STRINGS
 		varset = self.currentDoc.getObject("VarSet")
 		if(len(condList) != len(self.unitList)):
 			self.printLog("ERROR: setVars was called with a list of conditions of the wrong length")
 			raise ValueError()
 		for i in range(len(condList)):
-			varset.__setattr__(self.varList[i], str(condList[i]) + self.unitList[i])
+			varset.__setattr__(self.varList[i], condList[i] + self.unitList[i])
 		self.currentDoc.recompute()
+		self.printLog("inputted values " + str(condList) + "into variable set")
 	
-	def makeMesh(self): #meshes the file
+	def runMesher(self): #meshes the file
 		mesh = self.currentDoc.getObject('FEMMeshGmsh')
 		panel = meshPanel(mesh) #this is necessary to create the meshing methods in mesh.Tool
 		
@@ -136,7 +138,7 @@ class FemScript:
 				#large meshes will take a long time, and may trigger the timeout
 				#so the timeout increases for subsequent attempts to allow large meshes to complete.
 	
-	def solveMesh(self): #solves the file
+	def runSolver(self): #solves the file
 		self.printLog("-" * 50) #minor separator
 		
 		solver = self.currentDoc.getObject("SolverCcxTools")
@@ -218,8 +220,8 @@ class FemScript:
 	
 	def solveCondition(self, condList):
 	#creates and solves a simulation with variables in varList set to the values in condList
-		
-		fileName = "-".join([str(i) for i in condList]) + ".FCStd"
+		condList = [str(i) for i in condList]
+		fileName = "-".join(condList) + ".FCStd"
 		# solveCondition([1,2,3,4]) → "1-2-3-4.FCStd"
 		
 		self.makeFile(fileName)
@@ -227,13 +229,13 @@ class FemScript:
 		
 		try:
 		#if makeFile and setVars fail, then don't write anything to the result file
-		#but register the failed result in the result file if makeMesh or solveMesh fail
-			self.makeMesh()
-			self.solveMesh()
+		#but register the failed result in the result file if runMesher or runSolver fail
+			self.runMesher()
+			self.runSolver()
 		finally: 
 			self.printResult("\n")
 			self.printResult(str(datetime.datetime.now()) + ",")
-			self.printResult(",".join([str(i) for i in condList]) + ",")
+			self.printResult(",".join(condList) + ",")
 			self.printResult(str(self.meshTime) + "," + str(self.meshExitCode) + ",")
 			self.printResult(str(self.solveTime) + "," + str(self.solveExitCode) + ","
 							 + str(self.maxVmStress) + "," + str(self.maxShearStress))
@@ -255,8 +257,8 @@ if __name__ == "__main__":
 	sys.path.append(cwd)
 	from automaticFem import FemScript
 	
-	workingDir = cwd + "/testing/automaticFemTest"
-	templateName = "beamTest.FCStd"
+	workingDir = cwd + "/testing/automaticFem"
+	templateName = "beam.FCStd"
 	varList = ["beamLength", "beamWidth", "elementSize", "force"]
 	unitList = [" mm"," mm"," mm"," N"]
 	auto = FemScript(workingDir, templateName, varList, unitList)

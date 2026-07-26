@@ -13,8 +13,8 @@ cwd = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(cwd)
 from automaticFem import *
 
-workingDir = cwd + "/testing/convergerTest"
-templateName = "beamTest.FCStd"
+workingDir = cwd + "/testing/converger"
+templateName = "beam.FCStd"
 meshSizeVar = "elementSize"
 meshSizeUnit = " mm"
 

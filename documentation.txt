@@ -1,0 +1,86 @@
+INSTANCE VARIABLES: 
+	Template-related variables (describe all the simulations):
+		workingDir (string): the path to the working directory.
+			The working directory contains the template file, individual simulation files, and log files. 
+		templateFile (FreeCAD file object): the template file
+		varList (list of strings): a list of the names of the variables to be manipulated
+		unitList (list of strings): a list of the units corresponding to the variables in varList
+		
+	Simulation-related variables (describe the currently-open file): 
+		currentDoc (FreeCAD file object): the currently-open file
+		meshTime (number): The time, in seconds, that the mesher took to compute. 
+			Does not include time taken to prepare the mesh, which is usually considerably less than computing time. 
+		meshExitCode (number): The exit code from the latest run of the mesher.
+		solveTime (number): The time, in seconds, that the solver took to run. 
+			Does not include time taken to write the INP file.
+		solveExitCode (number or "OOM"): The exit code from the latest run of the solver. 
+		maxVmStress (number): The maximum von Mises stress from the latest run of the solver. 
+		maxShearStress (number): The maximum shear stress from the latest run of the solver. 
+
+METHODS: 
+	__init__(workingDir, templateName, varList, unitList)
+		Description: Initializes the solver macro with a template file and its variables
+		Parameters: 
+			workingDir (string): the path to the working directory
+			templateName (string): the name of the template file, including the ".FCStd" extension
+			varList (list of strings): a list of the names of the variables to be manipulated
+			unitList (list of strings): a list of the units corresponding to the variables in varList
+
+	printLog(message)
+		Description: Prints a message to the shell. 
+			Appends a new line to log.txt containing the timestamp, followed by the message.
+		Parameters: 
+			message (any type): the message to be printed and logged
+
+	printResult(message)
+		Description: Appends text to the result file. 
+		Parameters: 
+			message (any type): the text to be appended
+
+	makeFile(fileName)
+		Description: Creates a new copy of the template file, and opens it. 
+		Parameters:
+			fileName (string): the name of the new file, including the ".FCStd" extension
+		
+	setVars(condList)
+		Description: Sets the variables of the currently-open file to new values.
+		Parameters:
+			condList (list of any types): a list of the new values to be put, along with the units in unitList, into the variables in varList. 
+
+	runMesher()
+		Description: meshes the currently-open file
+
+	runSolver()
+		Description: solves the currently-open file
+
+	getMaxVmStress()
+		Description: gets the maximum simulated von Mises stress.
+		Returns: the maximum V.M. stress; or if it cannot be determined, None.
+
+	getMaxShearStress()
+		Description: gets the maximum simulated shear stress (i.e. Tresca stress).
+		Returns: the maximum shear stress; or if cannot be determined, None. 
+
+	closeFile()
+		Description: Closes the currently-open file and resets all simulation-related instance variables to None. 
+
+	solveCondition(condList)
+		Description: Creates a new simulation file, sets its variables, and meshes and solves it. Prints the result to result.txt.
+		Parameters:
+			condList (list of any types): The values to be set into the simulation. 
+				The simulation will be named as the values in condList separated by dashes, e.g. [1,2,3] →  1-2-3.FCStd.
+
+	solveString(condString)
+		Description: Basically the same as solveCondition, but with values inputted as a  string instead of a list
+		Parameters: 
+			condString: a string containing the values to be set into the simulation, separated by dashes, e.g. "1-2-3" →  [1,2,3]
+
+LOG FILES: 
+	log.txt
+		A log of the macros' actions, including time stamps. 
+	result.csv
+		a CSV file containing each simulation's
+			- start time
+			- meshing time and exit code
+			- solving time and exit code
+			- max. von Mises stress and shear stress
