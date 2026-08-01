@@ -10,15 +10,15 @@ varList = ["beamLength", "beamWidth", "elementSize", "force"]
 unitList = [" mm"," mm"," mm"," N"]
 auto = FemScript(workingDir, templateName, varList, unitList)
 
-conditions = ["100-10-5-100", "200-10-5-100", "100-20-5-100","100-10-2-100","100-10-5-200"]
+valStrings = ["100-10-5-100", "200-10-5-100", "100-20-5-100","100-10-2-100","100-10-5-200"]
 
 maxVMStresses = []
 maxShearStresses = []
 solveTimes = []
 
-for condString in conditions:
+for valString in valStrings:
 	try:
-		auto.solveString(condString)
+		auto.solveString(valString)
 	except:
 		auto.printLog("-" * 50)
 		auto.printLog("aborting simulation")

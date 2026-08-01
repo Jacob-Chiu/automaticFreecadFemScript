@@ -13,7 +13,7 @@ INSTANCE VARIABLES:
 		meshExitCode (number): The exit code from the latest run of the mesher.
 		solveTime (number): The time, in seconds, that the solver took to run. 
 			Does not include time taken to write the INP file.
-		solveExitCode (number or "OOM"): The exit code from the latest run of the solver. 
+		solveExitCode (number or "OOM"): The exit code from the latest run of the solver. "OOM" = out of memory. 
 		maxVmStress (number): The maximum von Mises stress from the latest run of the solver. 
 		maxShearStress (number): The maximum shear stress from the latest run of the solver. 
 
@@ -42,10 +42,10 @@ METHODS:
 		Parameters:
 			fileName (string): the name of the new file, including the ".FCStd" extension
 		
-	setVars(condList)
+	setVars(valList)
 		Description: Sets the variables of the currently-open file to new values.
 		Parameters:
-			condList (list of any types): a list of the new values to be put, along with the units in unitList, into the variables in varList. 
+			valList (list of any types): a list of the new values to be put, along with the units in unitList, into the variables in varList. 
 
 	runMesher()
 		Description: meshes the currently-open file
@@ -64,23 +64,24 @@ METHODS:
 	closeFile()
 		Description: Closes the currently-open file and resets all simulation-related instance variables to None. 
 
-	solveCondition(condList)
-		Description: Creates a new simulation file, sets its variables, and meshes and solves it. Prints the result to result.txt.
+	solveValues(valList)
+		Description: Creates a new simulation file, sets its variables, and meshes and solves it. Prints the result to a new line on result.csv.
 		Parameters:
-			condList (list of any types): The values to be set into the simulation. 
-				The simulation will be named as the values in condList separated by dashes, e.g. [1,2,3] →  1-2-3.FCStd.
+			valList (list of any types): The values to be set into the simulation. 
+				The simulation will be named as the values in valList separated by dashes, e.g. [1,2,3] →  1-2-3.FCStd.
 
-	solveString(condString)
-		Description: Basically the same as solveCondition, but with values inputted as a  string instead of a list
+	solveString(valString)
+		Description: Basically the same as solveValues, but with values inputted as a  string instead of a list
 		Parameters: 
-			condString: a string containing the values to be set into the simulation, separated by dashes, e.g. "1-2-3" →  [1,2,3]
+			valString: a string containing the values to be set into the simulation, separated by dashes, e.g. "1-2-3" →  [1,2,3]
 
 LOG FILES: 
 	log.txt
-		A log of the macros' actions, including time stamps. 
+		A log of the library's actions, with time stamps on each line. 
 	result.csv
 		a CSV file containing each simulation's
 			- start time
+			- variable values
 			- meshing time and exit code
 			- solving time and exit code
 			- max. von Mises stress and shear stress

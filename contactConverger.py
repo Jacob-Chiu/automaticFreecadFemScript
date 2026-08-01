@@ -26,7 +26,7 @@ auto.printLog("Iteration limit is: " + str(iterationLimit))
 state = 1
 while True:
 	try:
-		auto.solveCondition([elementSize, clearanceAdjust, contactStiff])
+		auto.solveValues([elementSize, clearanceAdjust, contactStiff])
 	except SolverError:
 		pass
 	except: 

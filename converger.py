@@ -14,15 +14,15 @@ sys.path.append(cwd)
 from automaticFem import *
 
 workingDir = cwd + "/testing/converger"
-templateName = "beam.FCStd"
+templateName = "beamHole.FCStd"
 meshSizeVar = "elementSize"
 meshSizeUnit = " mm"
 
 maxStresses  = []
-meshSize = 10
+meshSize = 1
 meshSizeDivider = 2
-iterationLimit = 6
-maxError = 0.02
+iterationLimit = 10
+maxError = 0.05
 
 auto = FemScript(workingDir, templateName, [meshSizeVar], [meshSizeUnit])
 auto.printLog("Max. error is: " + str(maxError))
@@ -30,7 +30,7 @@ auto.printLog("Iteration limit is: " + str(iterationLimit))
 
 while True:
 	try: 
-		auto.solveCondition([meshSize])
+		auto.solveValues([meshSize])
 	except: 
 		auto.printLog("=" * 50)
 		auto.printLog("aborting convergence study")

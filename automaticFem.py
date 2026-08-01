@@ -79,17 +79,18 @@ class FemScript:
 		self.templateFile.saveCopy(path)
 		self.currentDoc = App.openDocument(path)
 	
-	def setVars(self, condList): 
-	#sets the variables in varList to the numerical values in condList, with the units in unitList
-	#condList is a list of STRINGS
+	def setVars(self, valList): 
+	#sets the variables in varList to the numerical values in valList, with the units in unitList
 		varset = self.currentDoc.getObject("VarSet")
-		if(len(condList) != len(self.unitList)):
-			self.printLog("ERROR: setVars was called with a list of conditions of the wrong length")
+		if(len(valList) != len(self.unitList)):
+			self.printLog("ERROR: setVars was called with a list of values of the wrong length")
 			raise ValueError()
-		for i in range(len(condList)):
-			varset.__setattr__(self.varList[i], condList[i] + self.unitList[i])
+			
+		valList = [str(i) for i in valList]
+		for i in range(len(valList)):
+			varset.__setattr__(self.varList[i], valList[i] + self.unitList[i])
 		self.currentDoc.recompute()
-		self.printLog("inputted values " + str(condList) + "into variable set")
+		self.printLog("inputted values " + str(valList) + "into variable set")
 	
 	def runMesher(self): #meshes the file
 		mesh = self.currentDoc.getObject('FEMMeshGmsh')
@@ -218,14 +219,15 @@ class FemScript:
 		
 		self.printLog("saved and closed file")
 	
-	def solveCondition(self, condList):
-	#creates and solves a simulation with variables in varList set to the values in condList
-		condList = [str(i) for i in condList]
-		fileName = "-".join(condList) + ".FCStd"
-		# solveCondition([1,2,3,4]) → "1-2-3-4.FCStd"
+	def solveValues(self, valList):
+	#creates and solves a simulation with variables in varList set to the values in valList
+		valList = [str(i) for i in valList]
+		fileName = "-".join(valList) + ".FCStd"
+		# solveValues([1,2,3,4]) → "1-2-3-4.FCStd"
+		startTime = datetime.datetime.now()
 		
 		self.makeFile(fileName)
-		self.setVars(condList)
+		self.setVars(valList)
 		
 		try:
 		#if makeFile and setVars fail, then don't write anything to the result file
@@ -234,18 +236,18 @@ class FemScript:
 			self.runSolver()
 		finally: 
 			self.printResult("\n")
-			self.printResult(str(datetime.datetime.now()) + ",")
-			self.printResult(",".join(condList) + ",")
+			self.printResult(str(startTime) + ",")
+			self.printResult(",".join(valList) + ",")
 			self.printResult(str(self.meshTime) + "," + str(self.meshExitCode) + ",")
 			self.printResult(str(self.solveTime) + "," + str(self.solveExitCode) + ","
 							 + str(self.maxVmStress) + "," + str(self.maxShearStress))
 		#lack of "except" block means that errors in "try" will keep propagating after "finally" runs
 		
-	def solveString(self, condString):
-	#creates and solves a simulation with variables in varList defined by condString
-	#condString is formatted with values separated by dashes, e.g. "1-2-3-4"
-		condList = condString.split("-")
-		self.solveCondition(condList)
+	def solveString(self, valString):
+	#creates and solves a simulation with variables in varList defined by valString
+	#valString is formatted with values separated by dashes, e.g. "1-2-3-4"
+		valList = valString.split("-")
+		self.solveValues(valList)
 
 class SolverError(Exception): pass
 class MeshError(Exception): pass
@@ -262,5 +264,5 @@ if __name__ == "__main__":
 	varList = ["beamLength", "beamWidth", "elementSize", "force"]
 	unitList = [" mm"," mm"," mm"," N"]
 	auto = FemScript(workingDir, templateName, varList, unitList)
-	auto.solveCondition([100,10,2,100])
+	auto.solveValues([100,10,2,100])
 
