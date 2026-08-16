@@ -60,18 +60,29 @@ while True:
 			clearanceAdjust = clearanceAdjust * clearanceAdjustDivider
 			contactStiff = contactStiff * contactStiffMultiplier
 			state = 2
-	else: #state == 2; converging contact stiffness
+	elif(state == 2): #converging contact stiffness
 		if(error > maxError):
 			auto.printLog("Contact stiffness not converged, checking clearance adjustment convergence.")
 			auto.printLog("Reducing clearance adjustment.")
 			clearanceAdjust = clearanceAdjust / clearanceAdjustDivider
 			state = 1
 		else:
-			auto.printLog("Contact stiffness converged. DONE!!! YAY!!!!")
+			auto.printLog("Contact stiffness converged, now converging element size.")
+			auto.printLog("Reverting contact stiffness and decreasing element size.")
+			contactStiff = contactStiff / contactStiffMultiplier
+			elementSize = elementSize / elementSizeDivider
+			state = 3
+	else: #state == 3; converging element size
+		if(error > maxError): 
+			auto.printLog("Element size not converged, checking clearance adjustment convergence.")
+			auto.printLog("Reducing clearance adjustment.")
+			clearanceAdjust = clearanceAdjust / clearanceAdjustDivider
+			state = 1
+		else: 
+			auto.printLog("Element size converged. FINAL CONVERGENCE REACHED!!! YAY!!!")
 			auto.printLog("=" * 50)
 			auto.printLog("FINAL MAX STRESS: " + str(maxStresses[-1]))
 			break
-	
 	if(len(maxStresses) >= iterationLimit):
 		auto.printLog("=" * 50) #major separator 
 		auto.printLog("iteration limit reached")
