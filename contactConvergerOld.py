@@ -1,0 +1,90 @@
+import sys
+import os
+cwd = os.path.dirname(os.path.abspath(__file__))
+sys.path.append(cwd)
+from automaticFem import *
+
+workingDir = cwd + "/testing/contactConverger"
+templateName = "spherePlate.FCStd"
+varList = ["elementSize", "clearanceAdjustment", "contactStiffness"]
+unitList = [" um", " um", "*1000 GPa/m"]
+
+elementSize = 100
+elementSizeDivider = 2
+clearanceAdjust = 4
+clearanceAdjustDivider = 2
+contactStiff = 1000
+contactStiffMultiplier = 2
+maxError = 0.05
+iterationLimit = 30
+maxStresses = []
+
+auto = FemScript(workingDir, templateName, varList, unitList)
+auto.printLog("Max. error is: " + str(maxError))
+auto.printLog("Iteration limit is: " + str(iterationLimit))
+
+state = 1
+while True:
+	try:
+		auto.solveValues([elementSize, clearanceAdjust, contactStiff])
+	except SolverError:
+		pass
+	except: 
+		auto.printLog("=" * 50)
+		auto.printLog("aborting convergence study")
+		break
+	
+	maxStresses.append(auto.maxShearStress)
+	auto.closeFile()
+	auto.printLog("-" * 50)
+	
+	try:
+		error = abs((maxStresses[-1] - maxStresses[-2]) / maxStresses[-1])
+		auto.printLog("calculated an error of " + str(error))
+	except(IndexError, TypeError): error = 1000 
+	#this occurs for the first iteration, and also on the first iteration after an error
+	
+	if(maxStresses[-1] == None): #if solver failed
+		auto.printLog("Decreasing element size and reverting clearance adjustment")
+		elementSize = auto.roundSigFigs(elementSize / elementSizeDivider, 3)
+		clearanceAdjust = auto.roundSigFigs(clearanceAdjust * clearanceAdjustDivider, 3)
+		state = 1
+	elif(state == 1): #converging clearance adjust
+		if(error > maxError): #if not converged
+			auto.printLog("Clearance adjustment not converged, continue converging clearance adjustment")
+			auto.printLog("Reducing clearance adjustment")
+			clearanceAdjust = auto.roundSigFigs(clearanceAdjust / clearanceAdjustDivider, 3)
+		else:
+			auto.printLog("Clearance adjustment converged, now converging contact stiffness.")
+			auto.printLog("Reverting clearance adjustment and increasing contact stiffness.")
+			clearanceAdjust = auto.roundSigFigs(clearanceAdjust * clearanceAdjustDivider, 3)
+			contactStiff = auto.roundSigFigs(contactStiff * contactStiffMultiplier, 3)
+			state = 2
+	elif(state == 2): #converging contact stiffness
+		if(error > maxError):
+			auto.printLog("Contact stiffness not converged, checking clearance adjustment convergence.")
+			auto.printLog("Reducing clearance adjustment.")
+			clearanceAdjust = auto.roundSigFigs(clearanceAdjust / clearanceAdjustDivider, 3)
+			state = 1
+		else:
+			auto.printLog("Contact stiffness converged, now converging element size.")
+			auto.printLog("Reverting contact stiffness and decreasing element size.")
+			contactStiff = auto.roundSigFigs(contactStiff / contactStiffMultiplier, 3)
+			elementSize = auto.roundSigFigs(elementSize / elementSizeDivider, 3)
+			state = 3
+	else: #state == 3; converging element size
+		if(error > maxError): 
+			auto.printLog("Element size not converged, checking clearance adjustment convergence.")
+			auto.printLog("Reducing clearance adjustment.")
+			clearanceAdjust = auto.roundSigFigs(clearanceAdjust / clearanceAdjustDivider, 3)
+			state = 1
+		else: 
+			auto.printLog("Element size converged. FINAL CONVERGENCE REACHED!!! YAY!!!")
+			auto.printLog("=" * 50)
+			auto.printLog("FINAL MAX STRESS: " + str(maxStresses[-1]))
+			break
+	if(len(maxStresses) >= iterationLimit):
+		auto.printLog("=" * 50) #major separator 
+		auto.printLog("iteration limit reached")
+		auto.printLog("last stress value was " + str(maxStresses[-1]))
+		break
