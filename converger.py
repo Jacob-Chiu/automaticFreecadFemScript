@@ -43,7 +43,7 @@ while True:
 	try: 
 		error = abs((maxStresses[-1] - maxStresses[-2]) / maxStresses[-1])
 		auto.printLog("calculated an error of " + str(error))
-	except: error = 1000
+	except(IndexError, TypeError): error = 1000
 	#this occurs on the first iteration
 	
 	if(error < maxError): 
@@ -55,7 +55,8 @@ while True:
 	else:
 		auto.printLog("convergence not achieved")
 		auto.printLog("reducing mesh size")
-		meshSize = meshSize / meshSizeDivider #compute new mesh size
+		meshSize = roundSigFigs(meshSize / meshSizeDivider, 3) #compute new mesh size
+		#rounding keeps the number nice and tidy, instead of devolving into a ridiculous number like (1/2)^10 = 0.0009765624.
 		
 	if(len(maxStresses) >= iterationLimit):
 		auto.printLog("=" * 50) #major separator 

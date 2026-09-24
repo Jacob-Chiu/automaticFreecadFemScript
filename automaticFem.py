@@ -7,6 +7,7 @@ import psutil
 import os 
 from PySide import QtCore
 import datetime
+import math
 
 class FemScript:
 	
@@ -90,7 +91,7 @@ class FemScript:
 		for i in range(len(valList)):
 			varset.__setattr__(self.varList[i], valList[i] + self.unitList[i])
 		self.currentDoc.recompute()
-		self.printLog("inputted values " + str(valList) + "into variable set")
+		self.printLog("inputted values " + str(valList) + " into variable set")
 	
 	def runMesher(self): #meshes the file
 		mesh = self.currentDoc.getObject('FEMMeshGmsh')
@@ -193,14 +194,14 @@ class FemScript:
 		try: 
 			result = self.currentDoc.getObject('CCX_Results')
 			return(max(result.vonMises))
-		except:
+		except(AttributeError, TypeError): #if simulation failed and no results are available
 			return None 
 			
 	def getMaxShearStress(self):
 		try: 
 			result = self.currentDoc.getObject('CCX_Results')
 			return(max(result.MaxShear))
-		except:
+		except(AttributeError, TypeError): #if simulation failed and no results are available
 			return None
 	
 	def closeFile(self):
@@ -248,6 +249,11 @@ class FemScript:
 	#valString is formatted with values separated by dashes, e.g. "1-2-3-4"
 		valList = valString.split("-")
 		self.solveValues(valList)
+	
+	def roundSigFigs(self, x, n): 
+	#this is used to round the simulation parameters (e.g. mesh size, clearance adjust) after dividing/multiplying them, 
+	#to prevent them from getting too messy. 
+		return(float(round(x,-1*(int(math.log10(x)) - (n-1)))))
 
 class SolverError(Exception): pass
 class MeshError(Exception): pass
