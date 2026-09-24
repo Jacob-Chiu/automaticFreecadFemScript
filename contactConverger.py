@@ -49,7 +49,7 @@ while True:
 		elementSize = roundSigFigs(elementSize / elementSizeDivider, 3)
 		clearanceAdjust = roundSigFigs(clearanceAdjust * clearanceAdjustDivider, 3)
 		state = 1
-	elif(state == 1): #converging clearance adjust + element size
+	elif(state == 1): #converging clearance adjust
 		if(error > maxError): #if not converged
 			auto.printLog("Clearance adjustment not converged, continue converging clearance adjustment")
 			auto.printLog("Reducing clearance adjustment")
