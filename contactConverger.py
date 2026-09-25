@@ -71,12 +71,8 @@ while True:
 	
 	#IF SOLVER FAILED
 	if(maxStresses[-1] is None): 
-		if(state == 10 or state == 21 or state == 31 or state == 30): #if failed after reducing clearance adjustment, or after increasing contact stiffness
-			auto.printLog("Decreasing element size")
-			elementSize = auto.roundSigFigs(elementSize / elementSizeDivider, 3)
-		elif(state == 20): #if failed after reducing element size
-			auto.printLog("Decreasing clearance adjustment")
-			clearanceAdjust = auto.roundSigFigs(clearanceAdjust / clearanceAdjustDivider, 3)
+		auto.printLog("Decreasing element size")
+		elementSize = auto.roundSigFigs(elementSize / elementSizeDivider, 3)
 		continue #try running the simulation again
 	
 	#IF SOLVER DID NOT FAIL

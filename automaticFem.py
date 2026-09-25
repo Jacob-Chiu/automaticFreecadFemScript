@@ -253,7 +253,7 @@ class FemScript:
 	def roundSigFigs(self, x, n): 
 	#this is used to round the simulation parameters (e.g. mesh size, clearance adjust) after dividing/multiplying them, 
 	#to prevent them from getting too messy. 
-		return(float(round(x,-1*(int(math.log10(x)) - (n-1)))))
+		return(float(round(x,-1*(math.floor(math.log10(x)) - (n-1)))))
 
 class SolverError(Exception): pass
 class MeshError(Exception): pass
